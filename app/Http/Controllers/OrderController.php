@@ -9,7 +9,8 @@ use Illuminate\Support\Str;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use TCPDF;
 use Illuminate\Support\Facades\View;
-
+use Endroid\QrCode\Writer\PngWriter;
+use Endroid\QrCode\Builder\Builder;
 
 
 class OrderController extends Controller
@@ -79,47 +80,30 @@ public function destroy(Order $order)
     $items = $order->items;
     $total = $items->sum(fn($i) => $i->qty * $i->price);
 
-    $token = env('SECURE_PICKUP_TOKEN');
+    $token = env('SECURE_PICKUP_TOKEN', 'default_token');
     $pickupUrl = route('orders.pickup', $order->pickup_code) . '?token=' . $token;
 
-   // Generate QR Code sebagai string PNG
-$qrPng = QrCode::format('png')->size(150)->generate($pickupUrl);
+    // 🔹 Generate QR Code PNG (Endroid 4.x)
+    $result = Builder::create()
+        ->writer(new PngWriter())
+        ->data($pickupUrl)
+        ->size(150)
+        ->margin(10)
+        ->build();
 
-// Encode ke base64 agar bisa ditampilkan di <img>
-$qrImage = base64_encode($qrPng);
+    $qrImage = base64_encode($result->getString());
 
-    // 🔹 Render file Blade jadi HTML string
-    $html = View::make('orders.invoice', [
-        'order' => $order,
-        'items' => $items,
-        'total' => $total,
-        'qrImage' => $qrImage,
-    ])->render();
+    // 🔹 Render Blade
+    $html = View::make('orders.invoice', compact('order','items','total','qrImage'))->render();
 
-    // 🔹 Buat PDF pakai TCPDF
-    $pdf = new \TCPDF();
-    $pdf->SetCreator('Laravel PDF Generator');
-    $pdf->SetAuthor('InvoiceQR');
-    $pdf->SetTitle('Invoice #' . $order->id);
+    // 🔹 Buat PDF
+    $pdf = new TCPDF();
     $pdf->AddPage();
     $pdf->writeHTML($html, true, false, true, false, '');
 
-    // 🔹 Tentukan lokasi folder temp berdasarkan environment
-    if (app()->environment('production')) {
-        // ✅ Untuk Vercel (Linux)
-        $filePath = '/tmp/invoice-' . $order->id . '.pdf';
-    } else {
-        // ✅ Untuk Laragon/Local (Windows)
-        $filePath = storage_path('app/temp/invoice-' . $order->id . '.pdf');
-        if (!file_exists(dirname($filePath))) {
-            mkdir(dirname($filePath), 0777, true);
-        }
-    }
-
-    // 🔹 Simpan PDF ke file
+    $filePath = '/tmp/invoice-' . $order->id . '.pdf';
     $pdf->Output($filePath, 'F');
 
-    // 🔹 Return PDF sebagai download
     return response()->download($filePath)->deleteFileAfterSend(true);
 }
 
