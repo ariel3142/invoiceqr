@@ -3,14 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use chillerlan\QRCode\{QRCode, QROptions};
 use TCPDF;
 use Illuminate\Support\Facades\View;
-use Endroid\QrCode\Writer\PngWriter;
-use Endroid\QrCode\Builder\Builder;
+
 
 
 class OrderController extends Controller
@@ -75,38 +73,33 @@ public function destroy(Order $order)
     return redirect()->route('orders.invoice', $order->id);
 }
 
-    public function invoice(Order $order)
-{
+    public function invoice(Order $order){
     $items = $order->items;
-    $total = $items->sum(fn($i) => $i->qty * $i->price);
-
+    $total = $items->sum(fn($i)=>$i->qty*$i->price);
     $token = env('SECURE_PICKUP_TOKEN', 'default_token');
-    $pickupUrl = route('orders.pickup', $order->pickup_code) . '?token=' . $token;
+    $pickupUrl = route('orders.pickup', $order->pickup_code).'?token='.$token;
 
-    // 🔹 Generate QR Code PNG (Endroid 4.x)
-    $result = Builder::create()
-        ->writer(new PngWriter())
-        ->data($pickupUrl)
-        ->size(150)
-        ->margin(10)
-        ->build();
-
-    $qrImage = base64_encode($result->getString());
+    // 🔹 Generate QR PNG tanpa GD
+    $options = new QROptions([
+        'outputType' => QRCode::OUTPUT_IMAGE_PNG,
+        'eccLevel' => QRCode::ECC_L,
+        'scale' => 5,
+    ]);
+    $qrPng = (new QRCode($options))->render($pickupUrl);
+    $qrImage = base64_encode($qrPng);
 
     // 🔹 Render Blade
     $html = View::make('orders.invoice', compact('order','items','total','qrImage'))->render();
 
-    // 🔹 Buat PDF
+    // 🔹 PDF
     $pdf = new TCPDF();
     $pdf->AddPage();
     $pdf->writeHTML($html, true, false, true, false, '');
-
-    $filePath = '/tmp/invoice-' . $order->id . '.pdf';
-    $pdf->Output($filePath, 'F');
+    $filePath = '/tmp/invoice-'.$order->id.'.pdf';
+    $pdf->Output($filePath,'F');
 
     return response()->download($filePath)->deleteFileAfterSend(true);
 }
-
 public function pickup($code)
 {
     $order = Order::where('pickup_code', $code)->first();

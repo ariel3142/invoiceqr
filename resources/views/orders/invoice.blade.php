@@ -168,9 +168,9 @@
     </table>
 
     <div class="qr">
-        <div><strong>Kode Pickup:</strong> {{ $order->pickup_code }}</div>
-        <img src="data:image/png;base64,{{ $qrImage }}" alt="QR Code">
-        <div style="margin-top:5px;">Scan QR ini untuk proses pengambilan barang</div>
-    </div>
+    <div><strong>Kode Pickup:</strong> {{ $order->pickup_code }}</div>
+    <img src="data:image/png;base64,{{ $qrImage }}" alt="QR Code">
+    <div style="margin-top:5px;">Scan QR ini untuk proses pengambilan barang</div>
+</div>
 </body>
 </html>
