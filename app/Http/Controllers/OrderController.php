@@ -73,32 +73,23 @@ public function destroy(Order $order)
     return redirect()->route('orders.invoice', $order->id);
 }
 
-    public function invoice(Order $order){
+    public function invoice(Order $order)
+{
     $items = $order->items;
-    $total = $items->sum(fn($i)=>$i->qty*$i->price);
+    $total = $items->sum(fn($i) => $i->qty * $i->price);
     $token = env('SECURE_PICKUP_TOKEN', 'default_token');
-    $pickupUrl = route('orders.pickup', $order->pickup_code).'?token='.$token;
+    $pickupUrl = route('orders.pickup', $order->pickup_code) . '?token=' . $token;
 
-    // 🔹 Generate QR PNG tanpa GD
-    $options = new QROptions([
-        'outputType' => QRCode::OUTPUT_IMAGE_PNG,
-        'eccLevel' => QRCode::ECC_L,
+    // QR Code pakai base64 PNG
+    $options = new \chillerlan\QRCode\QROptions([
+        'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_IMAGE_PNG,
+        'eccLevel' => \chillerlan\QRCode\QRCode::ECC_L,
         'scale' => 5,
     ]);
-    $qrPng = (new QRCode($options))->render($pickupUrl);
+    $qrPng = (new \chillerlan\QRCode\QRCode($options))->render($pickupUrl);
     $qrImage = base64_encode($qrPng);
 
-    // 🔹 Render Blade
-    $html = View::make('orders.invoice', compact('order','items','total','qrImage'))->render();
-
-    // 🔹 PDF
-    $pdf = new TCPDF();
-    $pdf->AddPage();
-    $pdf->writeHTML($html, true, false, true, false, '');
-    $filePath = '/tmp/invoice-'.$order->id.'.pdf';
-    $pdf->Output($filePath,'F');
-
-    return response()->download($filePath)->deleteFileAfterSend(true);
+    return view('orders.invoice', compact('order', 'items', 'total', 'qrImage'));
 }
 public function pickup($code)
 {

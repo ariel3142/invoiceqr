@@ -172,5 +172,33 @@
     <img src="data:image/png;base64,{{ $qrImage }}" alt="QR Code">
     <div style="margin-top:5px;">Scan QR ini untuk proses pengambilan barang</div>
 </div>
+<div style="text-align:center; margin-top: 40px;">
+    <button id="downloadPdf" style="
+        background-color:#4CAF50;
+        color:white;
+        padding:10px 20px;
+        border:none;
+        border-radius:5px;
+        cursor:pointer;
+        font-size:16px;">
+        💾 Download PDF
+    </button>
+</div>
+
+<!-- Tambahkan script JS di akhir body -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+document.getElementById('downloadPdf').addEventListener('click', () => {
+    const invoice = document.body;
+    const opt = {
+        margin:       0.3,
+        filename:     'invoice-{{ $order->id }}.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(invoice).save();
+});
+</script>
 </body>
 </html>
